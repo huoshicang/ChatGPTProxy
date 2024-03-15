@@ -1,0 +1,30 @@
+FROM ubuntu:22.04 AS builder
+RUN apt-get update && apt-get install -y \
+    git \
+    cmake \
+    libclang-dev \
+    build-essential \
+    curl \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+RUN git clone https://github.com/gngpp/ninja.git && cd ninja && git checkout v0.9.45
+
+WORKDIR /ninja
+
+RUN sed -i 's/reqwest-impersonate", version ="0.11.49"/reqwest-impersonate", version ="=0.11.60"/' Cargo.toml
+
+RUN cargo build --release
+
+
+FROM ubuntu:22.04 AS runtime
+
+ENV LANG=C.UTF-8 DEBIAN_FRONTEND=noninteractive LANG=zh_CN.UTF-8 LANGUAGE=zh_CN.UTF-8 LC_ALL=C
+
+COPY --from=builder /ninja/target/release/ninja /bin/ninja
+
+ENTRYPOINT ["/bin/ninja"]
